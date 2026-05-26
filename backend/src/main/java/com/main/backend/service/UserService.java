@@ -10,6 +10,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.main.backend.dtos.UserDto;
+import com.main.backend.dtos.UserSuggestion;
 import com.main.backend.model.Address;
 import com.main.backend.model.User;
 import com.main.backend.repository.UserRepo;
@@ -92,6 +93,9 @@ public class UserService {
         return toResponse(user);
     }
 
+    public List<UserSuggestion> findUserByName(String name){
+        return userRepository.findDistinctByNameContaining(name);
+    }
 
     private void updateAddressAtIndex(User user, int index, String newAddressText) {
         if (user.getAddresses() == null) {

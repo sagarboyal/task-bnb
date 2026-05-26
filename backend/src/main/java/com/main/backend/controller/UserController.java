@@ -5,10 +5,13 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.main.backend.dtos.UserDto;
+import com.main.backend.dtos.UserSuggestion;
 import com.main.backend.service.UserService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+
+import java.util.List;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -40,4 +43,10 @@ public class UserController {
     public ResponseEntity<UserDto> updateUser(@Valid @RequestBody UserDto request, @PathVariable Integer id) {
         return ResponseEntity.ok(userService.updateUser(request, id));
     }
+
+    @GetMapping("suggest/{name}")
+    public ResponseEntity<List<UserSuggestion>> getSuggestions(@PathVariable String name) {
+        return ResponseEntity.ok(userService.findUserByName(name));
+    }
+    
 }
