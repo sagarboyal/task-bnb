@@ -12,10 +12,10 @@ import com.main.backend.dtos.LoginRequest;
 import com.main.backend.dtos.RegisterRequest;
 import com.main.backend.service.AuthService;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 
 
 @RestController
@@ -32,8 +32,8 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<String> login(@Valid @RequestBody LoginRequest request) {
-        if(!authService.login(request.email(), request.password()))
+    public ResponseEntity<String> login(@Valid @RequestBody LoginRequest request, HttpServletRequest req) {
+        if(!authService.login(request.email(), request.password(), req))
             throw new RuntimeException("Invalid Credential");
         return ResponseEntity.ok("Login successful");
     }

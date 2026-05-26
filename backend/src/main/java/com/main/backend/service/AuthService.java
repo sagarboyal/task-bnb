@@ -4,8 +4,15 @@ import java.util.Optional;
 
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.stereotype.Service;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+
 
 import com.main.backend.model.User;
 import com.main.backend.repository.UserRepo;
@@ -39,9 +46,19 @@ public class AuthService {
     }
 
 
-    public boolean login(String email, String password){
+    public boolean login(String email, String password, HttpServletRequest request){
         try{
-            authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(email, password));
+            UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(email, password);
+            var authentication = authenticationManager.authenticate(authToken);
+        
+            // 2. Set authentication into the Security Context
+            SecurityContext context = SecurityContextHolder.createEmptyContext();
+            context.setAuthentication(authentication);
+            SecurityContextHolder.setContext(context);
+        
+            // 3. Save the context into the session so Spring can remember it on next requests
+            request.getSession().setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, context);
+        
             return true;
         }catch(Exception e){
             return false;
