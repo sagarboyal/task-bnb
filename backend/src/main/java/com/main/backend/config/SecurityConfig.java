@@ -34,6 +34,12 @@ public class SecurityConfig {
                     .requestMatchers("/auth/**").permitAll()
                     .anyRequest().authenticated()
         )
+         .logout(logout -> logout
+            .logoutUrl("/auth/logout")
+            .deleteCookies("JSESSIONID")
+            .invalidateHttpSession(true)
+            .clearAuthentication(true)
+        )
         .authenticationProvider(authenticationProvider())
         .build();
     }

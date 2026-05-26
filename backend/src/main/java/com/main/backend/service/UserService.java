@@ -6,6 +6,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Stream;
 
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.main.backend.dtos.UserDto;
@@ -20,6 +21,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class UserService {
     
+    private final PasswordEncoder passwordEncoder;
     private final UserRepo userRepository;
 
     @Transactional 
@@ -30,6 +32,7 @@ public class UserService {
 
         User user = new User();
         user.setEmail(userRequest.getEmail());
+        user.setPassword(passwordEncoder.encode(userRequest.getPassword()));
         user.setName(userRequest.getName());
         user.setFatherName(userRequest.getFatherName());
         user.setMotherName(userRequest.getMotherName());
