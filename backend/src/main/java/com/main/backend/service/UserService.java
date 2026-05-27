@@ -93,8 +93,20 @@ public class UserService {
         return toResponse(user);
     }
 
+    public UserDto findUserById(Integer id) {
+        User user = userRepository.findById(id)
+                            .orElseThrow(() -> new RuntimeException("User not found"));
+        return toResponse(user);
+    }
+
+    public UserDto findUserByEmail(String email) {
+        User user = userRepository.findByEmail(email)
+                            .orElseThrow(() -> new RuntimeException("User not found"));
+        return toResponse(user);
+    }
+
     public List<UserSuggestion> findUserByName(String name){
-        return userRepository.findDistinctByNameContaining(name);
+        return userRepository.findSuggestions(name.trim());
     }
 
     private void updateAddressAtIndex(User user, int index, String newAddressText) {
@@ -118,6 +130,7 @@ public class UserService {
     private UserDto toResponse(User user) {
         List<Address> address = user.getAddresses();
         return UserDto.builder()
+            .id(user.getId())
             .email(user.getEmail())
             .name(user.getName())
             .fatherName(user.getFatherName())

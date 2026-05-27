@@ -8,9 +8,11 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.main.backend.dtos.UserDto;
 import com.main.backend.dtos.LoginRequest;
 import com.main.backend.dtos.RegisterRequest;
 import com.main.backend.service.AuthService;
+import com.main.backend.service.UserService;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -24,6 +26,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 public class AuthController {
     
     private final AuthService authService;
+    private final UserService userService;
 
     @PostMapping("/register")
     public ResponseEntity<String> register(@Valid @RequestBody RegisterRequest request) {
@@ -38,9 +41,12 @@ public class AuthController {
         return ResponseEntity.ok("Login successful");
     }
 
-    @GetMapping("me")
-    public String getMethodName(@AuthenticationPrincipal UserDetails userDetails) {
-        return new String(userDetails.getUsername());
+    @GetMapping("/me")
+    public ResponseEntity<UserDto> getCurrentUser(@AuthenticationPrincipal UserDetails userDetails) {
+        if (userDetails == null) {
+            return ResponseEntity.status(401).build();
+        }
+        return ResponseEntity.ok(userService.findUserByEmail(userDetails.getUsername()));
     }
     
 }

@@ -14,7 +14,14 @@ import com.main.backend.model.User;
 public interface UserRepo extends JpaRepository<User, Integer>{
     Optional<User> findByEmail(String email);
     Optional<User> findByCode(String code);
-    List<UserSuggestion> findDistinctByNameContaining(String name);
+    @Query("""
+            SELECT new com.main.backend.dtos.UserSuggestion(u.id, u.name, u.email, u.code)
+            FROM User u
+            WHERE LOWER(u.name) LIKE LOWER(CONCAT('%', :term, '%'))
+               OR LOWER(u.code) LIKE LOWER(CONCAT('%', :term, '%'))
+            ORDER BY u.code
+            """)
+    List<UserSuggestion> findSuggestions(@Param("term") String term);
 
     @Query("SELECT MAX(u.code) FROM User u WHERE u.code LIKE :prefix%")
     Optional<String> findMaxCodeWithPrefix(@Param("prefix") String prefix);

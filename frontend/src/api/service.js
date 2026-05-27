@@ -43,8 +43,9 @@ export const createNewUser = async (formData) => {
   return response.data;
 };
 
-export const updateUser = async (email, formData) => {
-  const response = await api.put(`/user/${email}`, {
+export const updateUser = async (id, formData) => {
+  const response = await api.patch(`/user/update/${id}`, {
+    email: formData.email,
     password: formData.password,
     name: formData.name,
     fatherName: formData.fatherName,
@@ -59,7 +60,17 @@ export const updateUser = async (email, formData) => {
   return response.data;
 };
 
-export const findUserByEmail = async (email) => {
-  const response = await api.get(`/user/${email}`);
+export const searchUsers = async (name) => {
+  const response = await api.get(`/user/suggest/${encodeURIComponent(name)}`);
+  return response.data;
+};
+
+export const getUserDetails = async (id) => {
+  const response = await api.get(`/user/${id}`);
+  return response.data;
+};
+
+export const findUserByCode = async (code) => {
+  const response = await api.get("/user", { params: { code } });
   return response.data;
 };

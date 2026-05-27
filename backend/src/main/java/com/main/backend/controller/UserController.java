@@ -29,9 +29,14 @@ import org.springframework.web.bind.annotation.RequestBody;
 public class UserController {
     private final UserService userService;
 
-    @GetMapping("/")
-    public ResponseEntity<UserDto> getMethodName(@RequestParam String code) {
+    @GetMapping
+    public ResponseEntity<UserDto> getUserByCode(@RequestParam String code) {
         return ResponseEntity.ok(userService.findUserByCode(code));
+    }
+
+    @GetMapping("{id}")
+    public ResponseEntity<UserDto> getUserById(@PathVariable Integer id) {
+        return ResponseEntity.ok(userService.findUserById(id));
     }
 
     @PostMapping("register")
