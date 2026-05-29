@@ -5,8 +5,8 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
-import com.main.backend.model.User;
-import com.main.backend.repository.UserRepo;
+import com.main.backend.model.Login;
+import com.main.backend.repository.LoginRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -14,15 +14,15 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class CustomUserDetailsService implements UserDetailsService{
     
-    private final UserRepo userRepository;
+    private final LoginRepository loginRepository;
     
     @Override
-    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        User user = userRepository.findByEmail(email)
-                        .orElseThrow(() -> new UsernameNotFoundException("Email not found"));
+    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        Login login = loginRepository.findByUsername(username)
+                .orElseThrow(() -> new UsernameNotFoundException("Username not found"));
         return org.springframework.security.core.userdetails.User
-                .withUsername(email)
-                .password(user.getPassword())
+                .withUsername(login.getUsername())
+                .password(login.getPassword())
                 .authorities("USER")
                 .build();
     }

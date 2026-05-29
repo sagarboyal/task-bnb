@@ -1,18 +1,20 @@
 package com.main.backend.service;
 
-import java.util.ArrayList;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Date;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
-import java.util.stream.Stream;
 
-import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import com.main.backend.dtos.UserDto;
 import com.main.backend.dtos.UserSuggestion;
-import com.main.backend.model.Address;
-import com.main.backend.model.User;
+import com.main.backend.model.Login;
+import com.main.backend.model.UserDetail;
+import com.main.backend.repository.LoginRepository;
 import com.main.backend.repository.UserRepo;
 
 import jakarta.transaction.Transactional;
@@ -22,85 +24,80 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class UserService {
     
-    private final PasswordEncoder passwordEncoder;
+    private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss");
+
     private final UserRepo userRepository;
+    private final LoginRepository loginRepository;
 
     @Transactional 
     public UserDto saveUser(UserDto userRequest) {
-        if (userRepository.findByEmail(userRequest.getEmail()).isPresent()) {
+        if (userRequest.getEmail() != null && userRepository.findByEmail(userRequest.getEmail()).isPresent()) {
             throw new RuntimeException("Email Already Exists");
         }
 
-        User user = new User();
+        UserDetail user = new UserDetail();
         user.setEmail(userRequest.getEmail());
-        user.setPassword(passwordEncoder.encode(userRequest.getPassword()));
         user.setName(userRequest.getName());
         user.setFatherName(userRequest.getFatherName());
         user.setMotherName(userRequest.getMotherName());
         user.setCode(generateUniqueCode());
         user.setPhone(userRequest.getPhone());
+        user.setDob(userRequest.getDob());
         user.setNationality(userRequest.getNationality());
         user.setGender(userRequest.getGender());
+        user.setAddress1(userRequest.getAddress1());
+        user.setAddress2(userRequest.getAddress2());
+        user.setAddress3(userRequest.getAddress3());
+        user.setUserCode(currentLoginUserCode());
+        user.setEntryDate(new Date());
+        user.setEntryTime(currentTime());
+        user.setStatus("0");
 
-        if (user.getAddresses() == null) {
-            user.setAddresses(new ArrayList<>());
-        }
-
-        Stream.of(userRequest.getAddress1(), userRequest.getAddress2(), userRequest.getAddress3())
-            .filter(Objects::nonNull)                 
-            .map(String::trim)                       
-            .filter(addr -> !addr.isEmpty())          
-            .forEach(addrText -> {
-                Address address = new Address();
-                address.setAddress(addrText);
-                address.setUser(user);                
-                user.getAddresses().add(address);     
-            });
-
-        User savedUser = userRepository.save(user);
+        UserDetail savedUser = userRepository.save(user);
         return toResponse(savedUser);
     }
 
     @Transactional
-    public UserDto updateUser(UserDto userRequest, Integer id) {
-        if (id == null) {
-            throw new RuntimeException("Id is required");
+    public UserDto updateUser(UserDto userRequest, String code) {
+        if (code == null || code.isBlank()) {
+            throw new RuntimeException("Code is required");
         }
         
-        User user = userRepository.findById(id)
+        UserDetail user = userRepository.findById(code)
                 .orElseThrow(() -> new RuntimeException("User not found"));
-
 
         user.setEmail(getUpdatedValue(user.getEmail(), userRequest.getEmail()));
         user.setName(getUpdatedValue(user.getName(), userRequest.getName()));
         user.setFatherName(getUpdatedValue(user.getFatherName(), userRequest.getFatherName()));
         user.setMotherName(getUpdatedValue(user.getMotherName(), userRequest.getMotherName()));
         user.setPhone(getUpdatedValue(user.getPhone(), userRequest.getPhone()));
+        user.setDob(userRequest.getDob() == null ? user.getDob() : userRequest.getDob());
         user.setNationality(getUpdatedValue(user.getNationality(), userRequest.getNationality()));
         user.setGender(getUpdatedValue(user.getGender(), userRequest.getGender()));
-        
-        updateAddressAtIndex(user, 0, userRequest.getAddress1());
-        updateAddressAtIndex(user, 1, userRequest.getAddress2());
-        updateAddressAtIndex(user, 2, userRequest.getAddress3());
+        user.setAddress1(getUpdatedValue(user.getAddress1(), userRequest.getAddress1()));
+        user.setAddress2(getUpdatedValue(user.getAddress2(), userRequest.getAddress2()));
+        user.setAddress3(getUpdatedValue(user.getAddress3(), userRequest.getAddress3()));
+        user.setStatus(getUpdatedValue(user.getStatus(), userRequest.getStatus()));
+        user.setModifyUser(currentLoginUserCode());
+        user.setModiDate(new Date());
+        user.setModiTime(currentTime());
         
         return toResponse(userRepository.save(user));
     }
 
 
     public UserDto findUserByCode(String code){
-        User user = userRepository.findByCode(code)
+        UserDetail user = userRepository.findById(code)
                             .orElseThrow(() -> new RuntimeException("User with this code not found"));
         return toResponse(user);
     }
 
-    public UserDto findUserById(Integer id) {
-        User user = userRepository.findById(id)
-                            .orElseThrow(() -> new RuntimeException("User not found"));
-        return toResponse(user);
+    public UserDto findUserById(String code) {
+        return findUserByCode(code);
     }
 
     public UserDto findUserByEmail(String email) {
-        User user = userRepository.findByEmail(email)
+        UserDetail user = userRepository.findByEmail(email)
                             .orElseThrow(() -> new RuntimeException("User not found"));
         return toResponse(user);
     }
@@ -109,39 +106,51 @@ public class UserService {
         return userRepository.findSuggestions(name.trim());
     }
 
-    private void updateAddressAtIndex(User user, int index, String newAddressText) {
-        if (user.getAddresses() == null) {
-            user.setAddresses(new ArrayList<>());
+    public UserDto findUserByUsername(String username) {
+        Login login = loginRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        Optional<UserDetail> user = Optional.empty();
+        if (login.getUserCode() != null && !login.getUserCode().isBlank()) {
+            user = userRepository.findByUserCode(login.getUserCode().trim());
         }
 
-        List<Address> addresses = user.getAddresses();
-
-        if (index < addresses.size()) {
-            Address existingAddress = addresses.get(index);
-            existingAddress.setAddress(getUpdatedValue(existingAddress.getAddress(), newAddressText));
-        } else if (newAddressText != null && !newAddressText.trim().isEmpty()) {
-            Address newAddress = new Address();
-            newAddress.setAddress(newAddressText.trim());
-            newAddress.setUser(user);
-            addresses.add(newAddress);
+        if (user.isEmpty() && login.getUserDetails() != null && !login.getUserDetails().isBlank()) {
+            String loginDetails = login.getUserDetails().trim();
+            user = userRepository.findByLoginDetails(loginDetails);
+            if (user.isEmpty()) {
+                user = userRepository.findByLoginDetailsLike(loginDetails);
+            }
         }
+
+        return user.map(this::toResponse).orElseGet(() -> UserDto.builder()
+                .userCode(trim(login.getUserCode()))
+                .name(trim(login.getUserDetails()))
+                .status("A")
+                .build());
     }
 
-    private UserDto toResponse(User user) {
-        List<Address> address = user.getAddresses();
+    private UserDto toResponse(UserDetail user) {
         return UserDto.builder()
-            .id(user.getId())
             .email(user.getEmail())
             .name(user.getName())
             .fatherName(user.getFatherName())
             .motherName(user.getMotherName())
             .code(user.getCode())
             .phone(user.getPhone())
+            .dob(user.getDob())
             .nationality(user.getNationality())
             .gender(user.getGender())
-            .address1((address != null && address.size() > 0) ? address.get(0).getAddress() : null)
-            .address2((address != null && address.size() > 1) ? address.get(1).getAddress() : null)
-            .address3((address != null && address.size() > 2) ? address.get(2).getAddress() : null)
+            .address1(user.getAddress1())
+            .address2(user.getAddress2())
+            .address3(user.getAddress3())
+            .userCode(user.getUserCode())
+            .entryDate(user.getEntryDate())
+            .entryTime(user.getEntryTime())
+            .modifyUser(user.getModifyUser())
+            .modiDate(user.getModiDate())
+            .modiTime(user.getModiTime())
+            .status(user.getStatus())
             .build();
     }
 
@@ -150,14 +159,14 @@ public class UserService {
         Optional<String> latestCodeOpt = userRepository.findMaxCodeWithPrefix(prefix);
         
         if (latestCodeOpt.isEmpty()) {
-            return "AL00010001";
+            return "AL001001";
         }
         
         String latestCode = latestCodeOpt.get();
         String numericPart = latestCode.substring(2);
         
         long nextNumber = Long.parseLong(numericPart) + 1;
-        return String.format("%s%08d", prefix, nextNumber);
+        return String.format("%s%06d", prefix, nextNumber);
     }
 
     private String getUpdatedValue(String oldValue, String newValue) {
@@ -165,5 +174,25 @@ public class UserService {
             return oldValue; 
         }
         return newValue;
+    }
+
+    private String trim(String value) {
+        return value == null ? null : value.trim();
+    }
+
+    private String currentLoginUserCode() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || authentication.getName() == null) {
+            throw new RuntimeException("Logged in user is required");
+        }
+
+        return loginRepository.findByUsername(authentication.getName())
+                .map(Login::getUserCode)
+                .map(String::trim)
+                .orElseThrow(() -> new RuntimeException("Logged in user not found"));
+    }
+
+    private String currentTime() {
+        return LocalTime.now().format(TIME_FORMATTER);
     }
 }

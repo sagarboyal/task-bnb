@@ -34,9 +34,9 @@ public class UserController {
         return ResponseEntity.ok(userService.findUserByCode(code));
     }
 
-    @GetMapping("{id}")
-    public ResponseEntity<UserDto> getUserById(@PathVariable Integer id) {
-        return ResponseEntity.ok(userService.findUserById(id));
+    @GetMapping("{code}")
+    public ResponseEntity<UserDto> getUserById(@PathVariable String code) {
+        return ResponseEntity.ok(userService.findUserById(code));
     }
 
     @PostMapping("register")
@@ -44,9 +44,9 @@ public class UserController {
         return ResponseEntity.ok(userService.saveUser(request));
     }
 
-    @PatchMapping("update/{id}")
-    public ResponseEntity<UserDto> updateUser(@Valid @RequestBody UserDto request, @PathVariable Integer id) {
-        return ResponseEntity.ok(userService.updateUser(request, id));
+    @PatchMapping("update/{code}")
+    public ResponseEntity<UserDto> updateUser(@Valid @RequestBody UserDto request, @PathVariable String code) {
+        return ResponseEntity.ok(userService.updateUser(request, code));
     }
 
     @GetMapping("suggest/{name}")

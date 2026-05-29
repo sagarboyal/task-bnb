@@ -1,5 +1,7 @@
 package com.main.backend.controller;
 
+import com.main.backend.model.Login;
+import com.main.backend.repository.LoginRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -27,26 +29,26 @@ public class AuthController {
     
     private final AuthService authService;
     private final UserService userService;
+    private final LoginRepository loginRepository;
 
     @PostMapping("/register")
     public ResponseEntity<String> register(@Valid @RequestBody RegisterRequest request) {
-        authService.register(request.email(), request.password());
-        return ResponseEntity.ok("Registration successful");
+        return ResponseEntity.badRequest().body("Login users must be created directly in database");
     }
 
     @PostMapping("/login")
     public ResponseEntity<String> login(@Valid @RequestBody LoginRequest request, HttpServletRequest req) {
-        if(!authService.login(request.email(), request.password(), req))
+        if(!authService.login(request.username(), request.password(), req))
             throw new RuntimeException("Invalid Credential");
         return ResponseEntity.ok("Login successful");
     }
 
     @GetMapping("/me")
-    public ResponseEntity<UserDto> getCurrentUser(@AuthenticationPrincipal UserDetails userDetails) {
+    public ResponseEntity<Login> getCurrentUser(@AuthenticationPrincipal UserDetails userDetails) {
         if (userDetails == null) {
             return ResponseEntity.status(401).build();
         }
-        return ResponseEntity.ok(userService.findUserByEmail(userDetails.getUsername()));
+        return ResponseEntity.ok(loginRepository.findByUsername(userDetails.getUsername()).get());
     }
     
 }
