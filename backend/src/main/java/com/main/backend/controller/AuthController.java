@@ -9,26 +9,21 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import com.main.backend.dtos.UserDto;
 import com.main.backend.dtos.LoginRequest;
 import com.main.backend.dtos.RegisterRequest;
 import com.main.backend.service.AuthService;
-import com.main.backend.service.UserService;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 
-
 @RestController
 @RequestMapping("/auth")
 @RequiredArgsConstructor
 public class AuthController {
-    
+
     private final AuthService authService;
-    private final UserService userService;
     private final LoginRepository loginRepository;
 
     @PostMapping("/register")
@@ -38,7 +33,7 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<String> login(@Valid @RequestBody LoginRequest request, HttpServletRequest req) {
-        if(!authService.login(request.username(), request.password(), req))
+        if (!authService.login(request.username(), request.password(), req))
             throw new RuntimeException("Invalid Credential");
         return ResponseEntity.ok("Login successful");
     }
@@ -50,5 +45,5 @@ public class AuthController {
         }
         return ResponseEntity.ok(loginRepository.findByUsername(userDetails.getUsername()).get());
     }
-    
+
 }

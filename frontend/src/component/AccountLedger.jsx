@@ -12,14 +12,13 @@ export const AccountLedger = () => {
   const [mode, setMode] = useState("SUBMIT"); // Modes: SUBMIT, MODIFY, FIND
 
   const initialFormState = {
-    id: "",
-    code: "",
     email: "",
     password: "",
     name: "",
     fatherName: "",
     motherName: "",
     phone: "",
+    dob: "",
     nationality: "",
     gender: "",
     address1: "",
@@ -292,7 +291,6 @@ export const AccountLedger = () => {
                   {
                     title: "Account",
                     fields: [
-                      ["Code", formData.code],
                       ["Email", formData.email],
                       ["Full Name", formData.name],
                     ],
@@ -302,6 +300,7 @@ export const AccountLedger = () => {
                     fields: [
                       ["Father's Name", formData.fatherName],
                       ["Mother's Name", formData.motherName],
+                      ["Date of Birth", formData.dob ? formData.dob.split('T')[0] : ""],
                       ["Phone", formData.phone],
                       ["Gender", formData.gender],
                       ["Nationality", formData.nationality],
@@ -384,18 +383,6 @@ export const AccountLedger = () => {
                 )}
                 {mode !== "SUBMIT" && (
                   <>
-                    <div>
-                      <label className="block text-[10px] font-semibold text-gray-500 uppercase mb-1">
-                        Code
-                      </label>
-                      <input
-                        type="text"
-                        name="code"
-                        value={formData.code}
-                        disabled
-                        className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-sm bg-gray-50 text-gray-600 cursor-not-allowed"
-                      />
-                    </div>
                     <div>
                       <label className="block text-[10px] font-semibold text-gray-500 uppercase mb-1">
                         Email Address
@@ -494,18 +481,33 @@ export const AccountLedger = () => {
                     </select>
                   </div>
                 </div>
-                <div>
-                  <label className="block text-[10px] font-semibold text-gray-500 uppercase mb-1">
-                    Nationality
-                  </label>
-                  <input
-                    type="text"
-                    name="nationality"
-                    value={formData.nationality}
-                    onChange={handleChange}
-                    disabled={mode === "FIND"}
-                    className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-sm focus:outline-none focus:border-blue-500 disabled:bg-gray-50"
-                  />
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[10px] font-semibold text-gray-500 uppercase mb-1">
+                      Date of Birth
+                    </label>
+                    <input
+                      type="date"
+                      name="dob"
+                      value={formData.dob ? formData.dob.split('T')[0] : ""}
+                      onChange={handleChange}
+                      disabled={mode === "FIND"}
+                      className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-sm bg-white focus:outline-none focus:border-blue-500 disabled:bg-gray-50"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-gray-500 uppercase mb-1">
+                      Nationality
+                    </label>
+                    <input
+                      type="text"
+                      name="nationality"
+                      value={formData.nationality}
+                      onChange={handleChange}
+                      disabled={mode === "FIND"}
+                      className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-sm focus:outline-none focus:border-blue-500 disabled:bg-gray-50"
+                    />
+                  </div>
                 </div>
               </div>
 

@@ -40,7 +40,7 @@ const Navbar = () => {
     }
   };
 
-  const userName = user?.name || user?.email || "User";
+  const userName = user?.userDetails || "User";
   const userInitial = userName.charAt(0).toUpperCase();
 
   return (
@@ -68,7 +68,12 @@ const Navbar = () => {
             viewBox="0 0 24 24"
             xmlns="http://www.w3.org/2000/svg"
           >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2.5}
+              d="M19 9l-7 7-7-7"
+            />
           </svg>
         </button>
 
@@ -79,8 +84,15 @@ const Navbar = () => {
                 {userName}
               </p>
               <p className="text-[10px] text-gray-400 truncate mt-0.5">
-                {user?.email || "Signed In"}
+                {user?.userCode
+                  ? `ID: ${user.userCode}`
+                  : user?.email || "Signed In"}
               </p>
+              {user?.phone && (
+                <p className="text-[10px] text-gray-400 truncate mt-0.5">
+                  Phone: {user.phone}
+                </p>
+              )}
             </div>
             <button
               onClick={handleLogout}
