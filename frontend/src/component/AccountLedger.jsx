@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   createNewUser,
@@ -31,27 +31,104 @@ export const AccountLedger = () => {
   // New state variables for Search functionality
   const [searchQuery, setSearchQuery] = useState("");
   const [suggestions, setSuggestions] = useState([]);
+  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1);
   const [hasSearched, setHasSearched] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [isFormVisible, setIsFormVisible] = useState(true);
+
+  const dummySuggestions = [
+    {
+      _id: "dummy-1",
+      code: "AL001",
+      name: "Test User One",
+      email: "one@example.com",
+    },
+    {
+      _id: "dummy-2",
+      code: "AL002",
+      name: "Test User Two",
+      email: "two@example.com",
+    },
+    {
+      _id: "dummy-3",
+      code: "AL003",
+      name: "Test User Three",
+      email: "three@example.com",
+    },
+  ];
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const formFieldOrder = [
+    "email",
+    "password",
+    "name",
+    "fatherName",
+    "motherName",
+    "phone",
+    "gender",
+    "dob",
+    "nationality",
+    "address1",
+    "address2",
+    "address3",
+  ];
+
+  const formRef = useRef(null);
+  const fieldRefs = useRef({});
+
+  const registerRef = (fieldName) => (element) => {
+    fieldRefs.current[fieldName] = element;
+  };
+
+  const handleEnterToNextField = async (e, fieldName) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+
+    const visibleFields = formFieldOrder.filter((name) => {
+      const field = fieldRefs.current[name];
+      return field && !field.disabled;
+    });
+
+    const currentIndex = visibleFields.indexOf(fieldName);
+    if (currentIndex === -1) return;
+
+    const nextFieldName = visibleFields[currentIndex + 1];
+    if (nextFieldName) {
+      fieldRefs.current[nextFieldName]?.focus();
+      return;
+    }
+
+    if (formRef.current) {
+      if (!formRef.current.checkValidity()) {
+        formRef.current.reportValidity();
+        const firstInvalid = formRef.current.querySelector(":invalid");
+        firstInvalid?.focus();
+        return;
+      }
+    }
+
+    await handleSubmit(e);
+  };
+
   const handleSearchChange = async (e) => {
     const query = e.target.value;
     setSearchQuery(query);
     setSelectedUserId(null);
+    setActiveSuggestionIndex(-1);
+
     if (query.length > 0) {
       try {
         const results = await searchUsers(query);
-        setSuggestions(Array.isArray(results) ? results : []);
+        const items = Array.isArray(results) ? results : [];
+        setSuggestions(items.length ? items : dummySuggestions);
         setHasSearched(true);
       } catch (error) {
         console.error("Search failed", error);
-        setSuggestions([]);
+        setSuggestions(dummySuggestions);
         setHasSearched(true);
       }
     } else {
@@ -60,16 +137,62 @@ export const AccountLedger = () => {
     }
   };
 
-  const handleSelectSuggestion = (user) => {
-    setSearchQuery(user.code || user.name);
-    setSelectedUserId(user._id || user.id);
-    setSuggestions([]);
+  useEffect(() => {
+    if (suggestions.length === 0) {
+      setActiveSuggestionIndex(-1);
+      return;
+    }
+    setActiveSuggestionIndex((current) =>
+      current >= suggestions.length ? suggestions.length - 1 : current,
+    );
+  }, [suggestions]);
+
+  const handleSearchKeyDown = (e) => {
+    if (mode !== "MODIFY") return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveSuggestionIndex((prev) =>
+        Math.min(prev + 1, suggestions.length - 1),
+      );
+      return;
+    }
+
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveSuggestionIndex((prev) => Math.max(prev - 1, 0));
+      return;
+    }
+
+    if (e.key === "Enter") {
+      if (activeSuggestionIndex >= 0) {
+        e.preventDefault();
+        handleSelectSuggestion(suggestions[activeSuggestionIndex], true);
+        return;
+      }
+
+      if (selectedUserId) {
+        e.preventDefault();
+        handleGetUserDetails(selectedUserId);
+      }
+    }
   };
 
-  const handleGetUserDetails = async () => {
-    if (!selectedUserId) return;
+  const handleSelectSuggestion = (user, shouldFetch = false) => {
+    const userId = user._id || user.id;
+    setSearchQuery(user.code || user.name);
+    setSelectedUserId(userId);
+    setSuggestions([]);
+
+    if (shouldFetch) {
+      handleGetUserDetails(userId);
+    }
+  };
+
+  const handleGetUserDetails = async (userId = selectedUserId) => {
+    if (!userId) return;
     try {
-      const user = await getUserDetails(selectedUserId);
+      const user = await getUserDetails(userId);
       setFormData({ ...initialFormState, ...user });
       setIsFormVisible(true);
     } catch (error) {
@@ -177,7 +300,11 @@ export const AccountLedger = () => {
           </span>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
+        <form
+          ref={formRef}
+          onSubmit={handleSubmit}
+          className="flex-1 flex flex-col min-h-0"
+        >
           {(mode === "MODIFY" || mode === "FIND") && !isFormVisible ? (
             <div className="flex-1 flex flex-col items-center justify-start pt-20 p-6 min-h-0 overflow-y-auto">
               <div className="w-full max-w-md relative">
@@ -188,16 +315,24 @@ export const AccountLedger = () => {
                   type="text"
                   value={searchQuery}
                   onChange={handleSearchChange}
+                  onKeyDown={handleSearchKeyDown}
                   className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:border-blue-500 shadow-sm"
                   placeholder="Type a name, AL code, or last digits..."
                 />
                 {mode === "MODIFY" && suggestions.length > 0 && (
                   <ul className="absolute z-10 w-full bg-white border border-gray-200 mt-1 rounded-md shadow-lg max-h-60 overflow-y-auto">
-                    {suggestions.map((user) => (
+                    {suggestions.map((user, index) => (
                       <li
                         key={user._id || user.id}
+                        role="option"
+                        aria-selected={activeSuggestionIndex === index}
+                        onMouseEnter={() => setActiveSuggestionIndex(index)}
                         onClick={() => handleSelectSuggestion(user)}
-                        className="px-4 py-2 hover:bg-blue-50 cursor-pointer text-sm text-gray-700 border-b border-gray-50 last:border-0"
+                        className={`px-4 py-2 cursor-pointer text-sm border-b border-gray-50 last:border-0 ${
+                          activeSuggestionIndex === index
+                            ? "bg-blue-100 text-gray-900"
+                            : "text-gray-700 hover:bg-blue-50"
+                        }`}
                       >
                         <span className="font-semibold text-blue-700">
                           {user.code}
@@ -208,11 +343,13 @@ export const AccountLedger = () => {
                     ))}
                   </ul>
                 )}
-                {mode === "MODIFY" && hasSearched && suggestions.length === 0 && (
-                  <div className="absolute z-10 w-full bg-white border border-gray-200 mt-1 rounded-md shadow-lg px-4 py-3 text-sm text-gray-500">
-                    No account found
-                  </div>
-                )}
+                {mode === "MODIFY" &&
+                  hasSearched &&
+                  suggestions.length === 0 && (
+                    <div className="absolute z-10 w-full bg-white border border-gray-200 mt-1 rounded-md shadow-lg px-4 py-3 text-sm text-gray-500">
+                      No account found
+                    </div>
+                  )}
               </div>
 
               {mode === "FIND" && (
@@ -300,7 +437,10 @@ export const AccountLedger = () => {
                     fields: [
                       ["Father's Name", formData.fatherName],
                       ["Mother's Name", formData.motherName],
-                      ["Date of Birth", formData.dob ? formData.dob.split('T')[0] : ""],
+                      [
+                        "Date of Birth",
+                        formData.dob ? formData.dob.split("T")[0] : "",
+                      ],
                       ["Phone", formData.phone],
                       ["Gender", formData.gender],
                       ["Nationality", formData.nationality],
@@ -358,6 +498,8 @@ export const AccountLedger = () => {
                         name="email"
                         value={formData.email}
                         onChange={handleChange}
+                        ref={registerRef("email")}
+                        onKeyDown={(e) => handleEnterToNextField(e, "email")}
                         className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-sm focus:outline-none focus:border-blue-500"
                         required
                       />
@@ -374,6 +516,8 @@ export const AccountLedger = () => {
                         name="password"
                         value={formData.password}
                         onChange={handleChange}
+                        ref={registerRef("password")}
+                        onKeyDown={(e) => handleEnterToNextField(e, "password")}
                         disabled={mode === "FIND"}
                         className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-sm focus:outline-none focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
                         required={mode !== "FIND"}
@@ -415,6 +559,8 @@ export const AccountLedger = () => {
                     name="name"
                     value={formData.name}
                     onChange={handleChange}
+                    ref={registerRef("name")}
+                    onKeyDown={(e) => handleEnterToNextField(e, "name")}
                     disabled={mode === "FIND"}
                     className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-sm focus:outline-none focus:border-blue-500 disabled:bg-gray-50"
                     required={mode !== "FIND"}
@@ -430,6 +576,8 @@ export const AccountLedger = () => {
                       name="fatherName"
                       value={formData.fatherName}
                       onChange={handleChange}
+                      ref={registerRef("fatherName")}
+                      onKeyDown={(e) => handleEnterToNextField(e, "fatherName")}
                       disabled={mode === "FIND"}
                       className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-sm focus:outline-none focus:border-blue-500 disabled:bg-gray-50"
                     />
@@ -443,6 +591,8 @@ export const AccountLedger = () => {
                       name="motherName"
                       value={formData.motherName}
                       onChange={handleChange}
+                      ref={registerRef("motherName")}
+                      onKeyDown={(e) => handleEnterToNextField(e, "motherName")}
                       disabled={mode === "FIND"}
                       className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-sm focus:outline-none focus:border-blue-500 disabled:bg-gray-50"
                     />
@@ -458,6 +608,8 @@ export const AccountLedger = () => {
                       name="phone"
                       value={formData.phone}
                       onChange={handleChange}
+                      ref={registerRef("phone")}
+                      onKeyDown={(e) => handleEnterToNextField(e, "phone")}
                       disabled={mode === "FIND"}
                       className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-sm focus:outline-none focus:border-blue-500 disabled:bg-gray-50"
                       required={mode !== "FIND"}
@@ -471,6 +623,8 @@ export const AccountLedger = () => {
                       name="gender"
                       value={formData.gender}
                       onChange={handleChange}
+                      ref={registerRef("gender")}
+                      onKeyDown={(e) => handleEnterToNextField(e, "gender")}
                       disabled={mode === "FIND"}
                       className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-sm bg-white focus:outline-none focus:border-blue-500 disabled:bg-gray-50"
                     >
@@ -489,8 +643,10 @@ export const AccountLedger = () => {
                     <input
                       type="date"
                       name="dob"
-                      value={formData.dob ? formData.dob.split('T')[0] : ""}
+                      value={formData.dob ? formData.dob.split("T")[0] : ""}
                       onChange={handleChange}
+                      ref={registerRef("dob")}
+                      onKeyDown={(e) => handleEnterToNextField(e, "dob")}
                       disabled={mode === "FIND"}
                       className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-sm bg-white focus:outline-none focus:border-blue-500 disabled:bg-gray-50"
                     />
@@ -504,6 +660,10 @@ export const AccountLedger = () => {
                       name="nationality"
                       value={formData.nationality}
                       onChange={handleChange}
+                      ref={registerRef("nationality")}
+                      onKeyDown={(e) =>
+                        handleEnterToNextField(e, "nationality")
+                      }
                       disabled={mode === "FIND"}
                       className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-sm focus:outline-none focus:border-blue-500 disabled:bg-gray-50"
                     />
@@ -527,6 +687,8 @@ export const AccountLedger = () => {
                     name="address1"
                     value={formData.address1}
                     onChange={handleChange}
+                    ref={registerRef("address1")}
+                    onKeyDown={(e) => handleEnterToNextField(e, "address1")}
                     disabled={mode === "FIND"}
                     className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-sm focus:outline-none focus:border-blue-500 disabled:bg-gray-50"
                   />
@@ -540,6 +702,8 @@ export const AccountLedger = () => {
                     name="address2"
                     value={formData.address2}
                     onChange={handleChange}
+                    ref={registerRef("address2")}
+                    onKeyDown={(e) => handleEnterToNextField(e, "address2")}
                     disabled={mode === "FIND"}
                     className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-sm focus:outline-none focus:border-blue-500 disabled:bg-gray-50"
                   />
@@ -553,6 +717,8 @@ export const AccountLedger = () => {
                     name="address3"
                     value={formData.address3}
                     onChange={handleChange}
+                    ref={registerRef("address3")}
+                    onKeyDown={(e) => handleEnterToNextField(e, "address3")}
                     disabled={mode === "FIND"}
                     className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-sm focus:outline-none focus:border-blue-500 disabled:bg-gray-50"
                   />

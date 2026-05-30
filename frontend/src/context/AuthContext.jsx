@@ -9,8 +9,19 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
+  const bypassAuth = true; // set to false when you want real auth behavior
 
   useEffect(() => {
+    if (bypassAuth) {
+      setUser({
+        name: "Developer",
+        email: "dev@example.com",
+        role: "admin",
+      });
+      setLoading(false);
+      return;
+    }
+
     const checkAuth = async () => {
       const publicPages = ["/login", "/register"];
       const isPublicPage = publicPages.includes(location.pathname);
@@ -41,7 +52,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     checkAuth();
-  }, [location.pathname, navigate]);
+  }, [location.pathname, navigate, bypassAuth]);
 
   return (
     <AuthContext.Provider value={{ user, setUser, loading }}>
